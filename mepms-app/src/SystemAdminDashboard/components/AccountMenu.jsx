@@ -13,7 +13,7 @@ export default function AccountMenu({ anchorEl, open, onClose, onSignOut, user }
     >
       <Box sx={{ p: 1.5, minWidth: 220 }}>
         <Stack direction="row" spacing={2} alignItems="center">
-          <Avatar src={user.image} alt={user.name} />
+          <Avatar src={user.profilePic} alt={user.name} />
           <Box>
             <Typography fontWeight="bold">{user.name}</Typography>
             <Typography variant="body2" color="text.secondary">

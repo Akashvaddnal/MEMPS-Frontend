@@ -20,7 +20,7 @@ const NAV_ITEMS = [
 const DRAWER_WIDTH = 220;
 const MINI_SIDEBAR_WIDTH = 62;
 
-export default function Sidebar({ mini, selected, onSelect, onMiniToggle }) {
+export default function Sidebar({ user,mini, selected, onSelect, onMiniToggle }) {
   return (
     <Drawer
       variant="permanent"
@@ -45,9 +45,12 @@ export default function Sidebar({ mini, selected, onSelect, onMiniToggle }) {
     >
       <Toolbar sx={{ justifyContent: mini ? 'center' : 'space-between', px: 1 }}>
         {mini ? (
-          <Avatar sx={{ width: 36, height: 36 }} src="https://avatars.githubusercontent.com/u/19550456" />
+          
+          <Typography sx={{ ml: 0, fontSize: '0.875rem' }} noWrap fontWeight="medium">
+            {user.name}
+          </Typography>
         ) : (
-          <Typography variant="h6" noWrap fontWeight="medium">
+          <Typography sx={{ ml: 0, fontSize: '0.875rem' }} noWrap fontWeight="medium">
             Admin Dashboard
           </Typography>
         )}

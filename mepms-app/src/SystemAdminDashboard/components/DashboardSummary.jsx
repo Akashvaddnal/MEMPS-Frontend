@@ -106,7 +106,7 @@ export default function DashboardSummary({ users, roles, logs }) {
       color: theme.palette.success.main,
     },
     {
-      label: 'Total Audit Logs',
+      label: 'Total Logs',
       value: formatNumber(totalLogs),
       icon: <HistoryIcon sx={{ fontSize: 42, color: theme.palette.warning.main }} />,
       color: theme.palette.warning.main,

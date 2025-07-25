@@ -1,22 +1,21 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
-import Box from '@mui/material/Box';
-// import DashboardLayoutAccountSidebar from './System-Admin/SystemAdminDashboard';
-// import AdminDashboard from './System-Admin/AdminDashboard';
-import SystemAdminDashboard from './SystemAdminDashboard/SystemAdminDashboard';
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import LoginPage from "./Login/Login"; 
+import SystemAdminDashboard from "./SystemAdminDashboard/SystemAdminDashboard";
+import AdminDashboard from "../src/System-Admin/AdminDashboard";
+import ClinicianDashboard from "../src/System-Admin/SystemAdminDashboard";
+import ProcurementDashboard from "../src/Components/pages/ProcurementDashboard";
 
-function App() {
-  const [count, setCount] = useState(0)
-
+export default function App() {
   return (
-    <Box sx={{ height: '100%', minHeight: '100vh', width: '100%', minWidth: 0 }}>
-      {/* <DashboardLayoutAccountSidebar /> */}
-      {/* <AdminDashboard/> */}
-      <SystemAdminDashboard/>
-    </Box>
+   <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LoginPage />} />
+        <Route path="/dashboard" element={<SystemAdminDashboard />} />
+        <Route path="/admin-dashboard" element={<AdminDashboard />} />
+        <Route path="/procurement-dashboard" element={<ProcurementDashboard />} />
+        <Route path="*" element={<Navigate replace to="/" />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
-
-export default App

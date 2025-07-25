@@ -24,6 +24,7 @@ import RoleForm from './components/RoleForm';
 import AuditLogTable from './components/AuditLogTable';
 import DashboardSummary from './components/DashboardSummary';
 import AddIcon from '@mui/icons-material/Add';
+import {jwtDecode} from 'jwt-decode';
 
 import axios from 'axios';
 
@@ -51,6 +52,7 @@ export default function SystemAdminDashboard() {
 
   const [mode, setMode] = useState('light');
   const [accountMenuAnchor, setAccountMenuAnchor] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
 
   const colorMode = useMemo(
     () => ({
@@ -78,6 +80,31 @@ export default function SystemAdminDashboard() {
 
   // Fetch data
   useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+
+    try {
+      // Optionally decode token to get user id/email/role
+      const decoded = jwtDecode(token);
+      // For example: decoded.email or decoded.sub (subject)
+      const userEmail = decoded.sub || decoded.email;
+
+      // Make an API call to get current user based on token
+      axios.get('http://localhost:9090/System-Admin-MS/api/users/current', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(res => {
+        setCurrentUser(res.data);
+      })
+      .catch(err => {
+        console.error('Failed to fetch current user', err);
+        // Optionally handle logout or token invalidation here
+      });
+    } catch (err) {
+      console.error('Invalid token', err);
+      // Optionally handle invalid token (logout user)
+    }
+
     axios.get('http://localhost:9090/System-Admin-MS/api/users').then(res => setUsers(res.data));
     axios.get('http://localhost:9090/System-Admin-MS/api/roles').then(res => setRoles(res.data));
     axios.get('http://localhost:9090/System-Admin-MS/api/audit-logs').then(res => setLogs(res.data));
@@ -140,11 +167,22 @@ export default function SystemAdminDashboard() {
   // Current user info
   console.log('🚀 Dashboard loaded');
 
-  const currentUser = {
-    name: 'Bharat Kashyap',
-    email: 'bharatkashyap@outlook.com',
-    image: 'https://avatars.githubusercontent.com/u/19550456',
+  // const currentUser = {
+  //   name: 'Akash Kashyap',
+  //   email: 'bharatkashyap@outlook.com',
+  //   image: 'https://avatars.githubusercontent.com/u/19550456',
+  // };
+  const userInfo = currentUser || {
+    name: '',
+    email: '',
+    profilePic: '',
   };
+
+   const avatarSrc = userInfo?.profilePic
+  ? userInfo.profilePic.startsWith('data:')
+    ? userInfo.profilePic
+    : `data:image/jpeg;base64,${userInfo.profilePic}`
+  : '';
 
   let content;
   switch (nav) {
@@ -241,7 +279,7 @@ export default function SystemAdminDashboard() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-        <Sidebar mini={mini} selected={nav} onSelect={setNav} onMiniToggle={() => setMini(b => !b)} />
+        <Sidebar user={userInfo} mini={mini} selected={nav} onSelect={setNav} onMiniToggle={() => setMini(b => !b)} />
         {/* <Box
           sx={{
             flexGrow: 1,
@@ -260,9 +298,9 @@ export default function SystemAdminDashboard() {
                 easing: theme.transitions.easing.sharp,
                 duration: theme.transitions.duration.leavingScreen,
                 }),
-            ml: mini ? `${MINI_SIDEBAR_WIDTH}px` : `${100}px`,
+            ml: mini ? `${MINI_SIDEBAR_WIDTH}px` : `${60}px`,
             mt:-2,
-            mr: mini ? `${MINI_SIDEBAR_WIDTH}px` : -10,
+            mr: mini ? `${MINI_SIDEBAR_WIDTH}px` : 5,
             }}
         >
           <AppBar
@@ -281,7 +319,7 @@ export default function SystemAdminDashboard() {
               <Stack direction="row" spacing={1} alignItems="center">
                 <ThemeToggleButton toggleColorMode={colorMode.toggleColorMode} />
                 <IconButton onClick={e => setAccountMenuAnchor(e.currentTarget)} size="small" aria-label="Open account menu">
-                  <Avatar alt={currentUser.name} src={currentUser.image} />
+                  <Avatar alt={userInfo.name} src={avatarSrc} />
                   <MoreVertIcon sx={{ ml: 0.5 }} />
                 </IconButton>
                 <AccountMenu
@@ -293,7 +331,7 @@ export default function SystemAdminDashboard() {
                     // Add your sign-out logic here
                     alert('Signed out');
                   }}
-                  user={currentUser}
+                  user={userInfo}
                 />
               </Stack>
             </Toolbar>
