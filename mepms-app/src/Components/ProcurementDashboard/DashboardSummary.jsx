@@ -45,7 +45,7 @@ export default function DashboardSummary({
     <Box sx={{ width: '100%', p: 2 }}>
       <Grid container spacing={3}>
         {cardData.map(({ label, value, icon, color }) => (
-          <Grid item xs={12} sm={6} md={3} key={label}>
+             <Grid xs={12} sm={6} md={3}>
             <Paper elevation={4} sx={{ p: 3, display: 'flex', alignItems: 'center', borderRadius: 2 }}>
               <Box sx={{ mr: 3 }}>{icon}</Box>
               <Stack>
