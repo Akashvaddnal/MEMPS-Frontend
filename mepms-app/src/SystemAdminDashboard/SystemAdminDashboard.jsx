@@ -90,11 +90,13 @@ export default function SystemAdminDashboard() {
       const userEmail = decoded.sub || decoded.email;
 
       // Make an API call to get current user based on token
-      axios.get('http://localhost:9090/System-Admin-MS/api/users/current', {
+      axios.get('http://localhost:9090/Login-Auth-MS/api/auth/current', {
         headers: { Authorization: `Bearer ${token}` }
       })
       .then(res => {
-        setCurrentUser(res.data);
+        if(res.data.roleName === 'System Administrator') {
+          setCurrentUser(res.data);
+        }
       })
       .catch(err => {
         console.error('Failed to fetch current user', err);
@@ -166,6 +168,7 @@ export default function SystemAdminDashboard() {
 
   // Current user info
   console.log('🚀 Dashboard loaded');
+  console.log('Current User:', currentUser);
 
   // const currentUser = {
   //   name: 'Akash Kashyap',

@@ -13,6 +13,7 @@
 //   IconButton,
 //   TextField,
 //   MenuItem,
+//   Chip,
 // } from '@mui/material';
 // import EditIcon from '@mui/icons-material/Edit';
 // import DeleteIcon from '@mui/icons-material/Delete';
@@ -30,10 +31,28 @@
 //   const [page, setPage] = useState(0);
 //   const [rowsPerPage, setRowsPerPage] = useState(5);
 
-//   const filtered = equipment.filter(eq => 
-//     eq.name?.toLowerCase().includes(search.toLowerCase()) || 
-//     eq.serialNumber?.toLowerCase().includes(search.toLowerCase())
-//   );
+//   const filtered = equipment.filter(eq => {
+//     const matchesSearch = 
+//       eq.name?.toLowerCase().includes(search.toLowerCase()) || 
+//       eq.serialNumber?.toLowerCase().includes(search.toLowerCase());
+    
+//     const matchesCategory = 
+//       !filters.category || eq.category === filters.category;
+    
+//     const matchesStatus = 
+//       !filters.status || eq.status === filters.status;
+    
+//     return matchesSearch && matchesCategory && matchesStatus;
+//   });
+
+//   const getStatusColor = (status) => {
+//     switch(status) {
+//       case 'Functional': return 'success';
+//       case 'Under Maintenance': return 'warning';
+//       case 'Out of Service': return 'error';
+//       default: return 'default';
+//     }
+//   };
 
 //   return (
 //     <Box>
@@ -62,6 +81,7 @@
 //           <MenuItem value="">All Status</MenuItem>
 //           <MenuItem value="Functional">Functional</MenuItem>
 //           <MenuItem value="Under Maintenance">Under Maintenance</MenuItem>
+//           <MenuItem value="Out of Service">Out of Service</MenuItem>
 //         </TextField>
 //       </Box>
 //       <TableContainer component={Paper}>
@@ -84,13 +104,23 @@
 //                 <TableCell>{item.model}</TableCell>
 //                 <TableCell>{item.serialNumber}</TableCell>
 //                 <TableCell>{item.category}</TableCell>
-//                 <TableCell>{item.status}</TableCell>
+//                 <TableCell>
+//                   <Chip 
+//                     label={item.status} 
+//                     size="small" 
+//                     color={getStatusColor(item.status)}
+//                   />
+//                 </TableCell>
 //                 <TableCell>{item.location}</TableCell>
 //                 <TableCell align="center">
 //                   <IconButton onClick={() => onEdit(item)} size="small">
 //                     <EditIcon fontSize="small" />
 //                   </IconButton>
-//                   <IconButton onClick={() => onDelete(item.id)} size="small" color="error">
+//                   <IconButton 
+//                     onClick={() => onDelete(item.id)} 
+//                     size="small" 
+//                     color="error"
+//                   >
 //                     <DeleteIcon fontSize="small" />
 //                   </IconButton>
 //                 </TableCell>
@@ -139,9 +169,11 @@ import {
   TablePagination,
   Paper,
   IconButton,
+  Button,
   TextField,
   MenuItem,
   Chip,
+  Tooltip,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -197,6 +229,8 @@ export default function EquipmentTable({
           <MenuItem value="">All Categories</MenuItem>
           <MenuItem value="Diagnostic">Diagnostic</MenuItem>
           <MenuItem value="Therapeutic">Therapeutic</MenuItem>
+          <MenuItem value="Monitoring">Monitoring</MenuItem>
+          <MenuItem value="Surgical">Surgical</MenuItem>
         </TextField>
         <TextField
           select
@@ -204,13 +238,22 @@ export default function EquipmentTable({
           value={filters.status}
           onChange={e => onFilter({ ...filters, status: e.target.value })}
           size="small"
-          sx={{ width: 150 }}
+          sx={{ width: 180 }}
         >
           <MenuItem value="">All Status</MenuItem>
           <MenuItem value="Functional">Functional</MenuItem>
           <MenuItem value="Under Maintenance">Under Maintenance</MenuItem>
           <MenuItem value="Out of Service">Out of Service</MenuItem>
+          <MenuItem value="In Storage">In Storage</MenuItem>
         </TextField>
+        <Button 
+          variant="contained" 
+          color="primary"
+          onClick={() => onEdit({})}
+          sx={{ ml: 'auto' }}
+        >
+          Add Equipment
+        </Button>
       </Box>
       <TableContainer component={Paper}>
         <Table size="small">
@@ -227,7 +270,7 @@ export default function EquipmentTable({
           </TableHead>
           <TableBody>
             {filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map(item => (
-              <TableRow key={item.id}>
+              <TableRow key={item._id}>
                 <TableCell>{item.name}</TableCell>
                 <TableCell>{item.model}</TableCell>
                 <TableCell>{item.serialNumber}</TableCell>
@@ -241,16 +284,20 @@ export default function EquipmentTable({
                 </TableCell>
                 <TableCell>{item.location}</TableCell>
                 <TableCell align="center">
-                  <IconButton onClick={() => onEdit(item)} size="small">
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton 
-                    onClick={() => onDelete(item.id)} 
-                    size="small" 
-                    color="error"
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
+                  <Tooltip title="Edit">
+                    <IconButton onClick={() => onEdit(item)} size="small">
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Delete">
+                    <IconButton 
+                      onClick={() => onDelete(item._id)} 
+                      size="small" 
+                      color="error"
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             ))}

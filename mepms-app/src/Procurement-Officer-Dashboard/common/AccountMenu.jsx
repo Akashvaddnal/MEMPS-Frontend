@@ -50,7 +50,7 @@ export default function AccountMenu({
             sx={{ width: 48, height: 48 }}
           />
           <Box>
-            <Typography fontWeight="bold">{user?.name || 'User'}</Typography>
+            <Typography fontWeight="bold">{user?.username || 'User'}</Typography>
             <Typography variant="body2" color="text.secondary">
               {user?.email || 'user@example.com'}
             </Typography>

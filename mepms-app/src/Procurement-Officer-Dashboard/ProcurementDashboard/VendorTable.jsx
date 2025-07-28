@@ -29,7 +29,8 @@
 
 //   const filtered = vendors.filter(vendor => 
 //     vendor.name?.toLowerCase().includes(search.toLowerCase()) || 
-//     vendor.email?.toLowerCase().includes(search.toLowerCase())
+//     vendor.email?.toLowerCase().includes(search.toLowerCase()) ||
+//     vendor.contactPerson?.toLowerCase().includes(search.toLowerCase())
 //   );
 
 //   return (
@@ -104,7 +105,6 @@
 //   onSearch: PropTypes.func.isRequired,
 // };
 
-
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import {
@@ -119,15 +119,19 @@ import {
   Paper,
   IconButton,
   Button,
+  Chip,
+  Tooltip,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import LinkIcon from '@mui/icons-material/Link';
 import SearchBar from '../common/SearchBar';
 
 export default function VendorTable({ 
   vendors, 
   onEdit, 
   onDelete, 
+  onLinkEquipment,
   search, 
   onSearch 
 }) {
@@ -165,23 +169,43 @@ export default function VendorTable({
               <TableCell>Contact Person</TableCell>
               <TableCell>Email</TableCell>
               <TableCell>Phone</TableCell>
+              <TableCell>Equipment Count</TableCell>
               <TableCell align="center">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map(vendor => (
-              <TableRow key={vendor.id}>
+              <TableRow key={vendor._id}>
                 <TableCell>{vendor.name}</TableCell>
                 <TableCell>{vendor.contactPerson}</TableCell>
                 <TableCell>{vendor.email}</TableCell>
                 <TableCell>{vendor.phone}</TableCell>
+                <TableCell>
+                  <Chip 
+                    label={vendor.equipmentProvided?.length || 0} 
+                    color={vendor.equipmentProvided?.length ? "primary" : "default"}
+                  />
+                </TableCell>
                 <TableCell align="center">
-                  <IconButton onClick={() => onEdit(vendor)} size="small">
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton onClick={() => onDelete(vendor.id)} size="small" color="error">
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
+                  <Tooltip title="Edit">
+                    <IconButton onClick={() => onEdit(vendor)} size="small">
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Delete">
+                    <IconButton onClick={() => onDelete(vendor._id)} size="small" color="error">
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Manage Equipment">
+                    <IconButton 
+                      onClick={() => onLinkEquipment(vendor._id)} 
+                      size="small" 
+                      color="secondary"
+                    >
+                      <LinkIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             ))}
@@ -208,6 +232,7 @@ VendorTable.propTypes = {
   vendors: PropTypes.array.isRequired,
   onEdit: PropTypes.func.isRequired,
   onDelete: PropTypes.func.isRequired,
+  onLinkEquipment: PropTypes.func.isRequired,
   search: PropTypes.string.isRequired,
   onSearch: PropTypes.func.isRequired,
 };

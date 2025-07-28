@@ -299,7 +299,10 @@ export default function LoginPage() {
           navigate("/procurement-dashboard");
           break;
         case "System Administrator":
-          navigate("/dashboard"); // Assuming this is the SystemAdminDashboard route
+          navigate("/System-dashboard"); // Assuming this is the SystemAdminDashboard route
+          break;
+        case "Inventory Manager":
+          navigate("/inventory-dashboard"); // Assuming this is the InventoryManagerDashboard route
           break;
         default:
           navigate("/dashboards"); // fallback route

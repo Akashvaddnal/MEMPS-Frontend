@@ -1,45 +1,3 @@
-// // APIEndpoints.js
-
-// // Base URLs
-// const BASE_URL_LOGIN_AUTH = "http://localhost:9090/Login-Auth-MS/api/auth";
-// const BASE_URL_SYSTEM_ADMIN = "http://localhost:9090/System-Admin-MS/api";
-
-
-// // Login-Auth-MS Endpoints
-// export const AUTH_ENDPOINTS = {
-//   REGISTER: `${BASE_URL_LOGIN_AUTH}/register`,
-//   LOGIN: `${BASE_URL_LOGIN_AUTH}/login`,
-// };
-
-// // User Controller Endpoints
-// export const USER_ENDPOINTS = {
-//   CREATE: `${BASE_URL_SYSTEM_ADMIN}/users`,
-//   GET_ALL: `${BASE_URL_SYSTEM_ADMIN}/users`,
-//   GET_BY_ID: (id) => `${BASE_URL_SYSTEM_ADMIN}/users/${id}`,
-//   UPDATE: (id) => `${BASE_URL_SYSTEM_ADMIN}/users/${id}`,
-//   DELETE: (id) => `${BASE_URL_SYSTEM_ADMIN}/users/${id}`,
-// };
-
-// // Role Controller Endpoints
-// export const ROLE_ENDPOINTS = {
-//   CREATE: `${BASE_URL_SYSTEM_ADMIN}/roles`,
-//   GET_ALL: `${BASE_URL_SYSTEM_ADMIN}/roles`,
-//   GET_BY_ID: (id) => `${BASE_URL_SYSTEM_ADMIN}/roles/${id}`,
-//   UPDATE: (id) => `${BASE_URL_SYSTEM_ADMIN}/roles/${id}`,
-//   DELETE: (id) => `${BASE_URL_SYSTEM_ADMIN}/roles/${id}`,
-// };
-
-// // AuditLog Controller Endpoints
-// export const AUDIT_LOG_ENDPOINTS = {
-//   CREATE: `${BASE_URL_SYSTEM_ADMIN}/audit-logs`,
-//   GET_ALL: `${BASE_URL_SYSTEM_ADMIN}/audit-logs`,
-//   GET_BY_ID: (id) => `${BASE_URL_SYSTEM_ADMIN}/audit-logs/${id}`,
-//   GET_BY_USER_ID: (userId) => `${BASE_URL_SYSTEM_ADMIN}/audit-logs/user/${userId}`,
-//   GET_BY_ACTION: (action) => `${BASE_URL_SYSTEM_ADMIN}/audit-logs/action/${action}`,
-//   DELETE: (id) => `${BASE_URL_SYSTEM_ADMIN}/audit-logs/${id}`,
-// };
-
-
 
 // APIEndpoints.js
 
@@ -101,7 +59,51 @@ export const VENDOR_ENDPOINTS = {
   UPDATE: (id) => `${BASE_URL_PROCUREMENT_OFFICER}/vendors/${id}`,
   DELETE: (id) => `${BASE_URL_PROCUREMENT_OFFICER}/vendors/${id}`,
   COUNT: `${BASE_URL_PROCUREMENT_OFFICER}/vendors/count`,
+  
+  // Vendor-Equipment Relationship Endpoints
+  GET_VENDOR_EQUIPMENT: (vendorId) => `${BASE_URL_PROCUREMENT_OFFICER}/vendors/${vendorId}/equipment`,
+  ADD_EQUIPMENT_TO_VENDOR: (vendorId, equipmentId) => 
+    `${BASE_URL_PROCUREMENT_OFFICER}/vendors/${vendorId}/add-equipment/${equipmentId}`,
+  REMOVE_EQUIPMENT_FROM_VENDOR: (vendorId, equipmentId) => 
+    `${BASE_URL_PROCUREMENT_OFFICER}/vendors/${vendorId}/remove-equipment/${equipmentId}`,
+  // Get vendor with equipment details (combined response)
+  GET_VENDOR_WITH_EQUIPMENT: (vendorId) => `${BASE_URL_PROCUREMENT_OFFICER}/vendors/${vendorId}/equipment-details`
 };
+
+// Equipment
+export const EQUIPMENT_ENDPOINTS = {
+  CREATE: `${BASE_URL_PROCUREMENT_OFFICER}/equipment`,
+  GET_ALL: `${BASE_URL_PROCUREMENT_OFFICER}/equipment`,
+  GET_BY_ID: (id) => `${BASE_URL_PROCUREMENT_OFFICER}/equipment/${id}`,
+  GET_BY_SERIAL_NUMBER: (serialNumber) => 
+    `${BASE_URL_PROCUREMENT_OFFICER}/equipment/serial-number/${encodeURIComponent(serialNumber)}`,
+  GET_BY_CATEGORY: (category) => 
+    `${BASE_URL_PROCUREMENT_OFFICER}/equipment/category/${encodeURIComponent(category)}`,
+  GET_BY_STATUS: (status) => 
+    `${BASE_URL_PROCUREMENT_OFFICER}/equipment/status/${encodeURIComponent(status)}`,
+  GET_BY_VENDOR_ID: (vendorId) => 
+    `${BASE_URL_PROCUREMENT_OFFICER}/equipment/vendor/${vendorId}`,
+  UPDATE: (id) => `${BASE_URL_PROCUREMENT_OFFICER}/equipment/${id}`,
+  DELETE: (id) => `${BASE_URL_PROCUREMENT_OFFICER}/equipment/${id}`,
+  
+  // Equipment-Vendor Relationship Endpoints
+  ASSIGN_EQUIPMENT_TO_VENDOR: (equipmentId, vendorId) => 
+    `${BASE_URL_PROCUREMENT_OFFICER}/equipment/${equipmentId}/assign-to-vendor/${vendorId}`,
+  REMOVE_EQUIPMENT_FROM_VENDOR: (equipmentId, vendorId) => 
+    `${BASE_URL_PROCUREMENT_OFFICER}/equipment/${equipmentId}/remove-from-vendor/${vendorId}`,
+};
+
+// Vendors
+// export const VENDOR_ENDPOINTS = {
+//   CREATE: `${BASE_URL_PROCUREMENT_OFFICER}/vendors`,
+//   GET_ALL: `${BASE_URL_PROCUREMENT_OFFICER}/vendors`,
+//   GET_BY_ID: (id) => `${BASE_URL_PROCUREMENT_OFFICER}/vendors/${id}`,
+//   GET_BY_EMAIL: (email) => `${BASE_URL_PROCUREMENT_OFFICER}/vendors/email/${encodeURIComponent(email)}`,
+//   GET_BY_NAME: (name) => `${BASE_URL_PROCUREMENT_OFFICER}/vendors/name/${encodeURIComponent(name)}`,
+//   UPDATE: (id) => `${BASE_URL_PROCUREMENT_OFFICER}/vendors/${id}`,
+//   DELETE: (id) => `${BASE_URL_PROCUREMENT_OFFICER}/vendors/${id}`,
+//   COUNT: `${BASE_URL_PROCUREMENT_OFFICER}/vendors/count`,
+// };
 
 // Purchase Orders
 export const PURCHASE_ORDER_ENDPOINTS = {
@@ -140,18 +142,18 @@ export const NOTIFICATION_ENDPOINTS = {
   DELETE: (id) => `${BASE_URL_PROCUREMENT_OFFICER}/notifications/${id}`,
 };
 
-// Equipment
-export const EQUIPMENT_ENDPOINTS = {
-  CREATE: `${BASE_URL_PROCUREMENT_OFFICER}/equipment`,
-  GET_ALL: `${BASE_URL_PROCUREMENT_OFFICER}/equipment`,
-  GET_BY_ID: (id) => `${BASE_URL_PROCUREMENT_OFFICER}/equipment/${id}`,
-  GET_BY_SERIAL_NUMBER: (serialNumber) => `${BASE_URL_PROCUREMENT_OFFICER}/equipment/serial-number/${encodeURIComponent(serialNumber)}`,
-  GET_BY_CATEGORY: (category) => `${BASE_URL_PROCUREMENT_OFFICER}/equipment/category/${encodeURIComponent(category)}`,
-  GET_BY_STATUS: (status) => `${BASE_URL_PROCUREMENT_OFFICER}/equipment/status/${encodeURIComponent(status)}`,
-  GET_BY_VENDOR_ID: (vendorId) => `${BASE_URL_PROCUREMENT_OFFICER}/equipment/vendor/${vendorId}`,
-  UPDATE: (id) => `${BASE_URL_PROCUREMENT_OFFICER}/equipment/${id}`,
-  DELETE: (id) => `${BASE_URL_PROCUREMENT_OFFICER}/equipment/${id}`,
-};
+// // Equipment
+// export const EQUIPMENT_ENDPOINTS = {
+//   CREATE: `${BASE_URL_PROCUREMENT_OFFICER}/equipment`,
+//   GET_ALL: `${BASE_URL_PROCUREMENT_OFFICER}/equipment`,
+//   GET_BY_ID: (id) => `${BASE_URL_PROCUREMENT_OFFICER}/equipment/${id}`,
+//   GET_BY_SERIAL_NUMBER: (serialNumber) => `${BASE_URL_PROCUREMENT_OFFICER}/equipment/serial-number/${encodeURIComponent(serialNumber)}`,
+//   GET_BY_CATEGORY: (category) => `${BASE_URL_PROCUREMENT_OFFICER}/equipment/category/${encodeURIComponent(category)}`,
+//   GET_BY_STATUS: (status) => `${BASE_URL_PROCUREMENT_OFFICER}/equipment/status/${encodeURIComponent(status)}`,
+//   GET_BY_VENDOR_ID: (vendorId) => `${BASE_URL_PROCUREMENT_OFFICER}/equipment/vendor/${vendorId}`,
+//   UPDATE: (id) => `${BASE_URL_PROCUREMENT_OFFICER}/equipment/${id}`,
+//   DELETE: (id) => `${BASE_URL_PROCUREMENT_OFFICER}/equipment/${id}`,
+// };
 
 // Equipment Lifecycle
 export const EQUIPMENT_LIFECYCLE_ENDPOINTS = {

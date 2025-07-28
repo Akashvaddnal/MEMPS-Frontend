@@ -38,7 +38,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
 import InfoIcon from '@mui/icons-material/Info';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
-import { EQUIPMENT_ENDPOINTS, VENDOR_ENDPOINTS } from '../../API_ENDPOINTS/API';
+import { EQUIPMENT_ENDPOINTS, VENDOR_ENDPOINTS, PURCHASE_ORDER_ITEM_ENDPOINTS } from '../../API_ENDPOINTS/API';
 import axios from 'axios';
 
 export default function PurchaseOrderForm({ 
@@ -51,7 +51,6 @@ export default function PurchaseOrderForm({
   notifications = []
 }) {
   const [form, setForm] = useState({
-    poNumber: '',
     vendorId: '',
     dateIssued: dayjs(),
     status: 'Pending',
@@ -73,45 +72,100 @@ export default function PurchaseOrderForm({
   });
 
   const [showNotifications, setShowNotifications] = useState(false);
-  const [filteredEquipment, setFilteredEquipment] = useState(equipment);
+  const [filteredEquipment, setFilteredEquipment] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedVendor, setSelectedVendor] = useState(null);
 
   useEffect(() => {
     const loadOrderData = async () => {
       setLoading(true);
       try {
         if (order) {
-          // Fetch equipment details for each item
+          // First fetch the purchase order items
+          let orderItems = [];
+          try {
+            const itemsResponse = await axios.get(
+              PURCHASE_ORDER_ITEM_ENDPOINTS.GET_BY_PO_ID(order._id || order.id)
+            );
+            orderItems = itemsResponse.data;
+          } catch (error) {
+            console.error('Error fetching order items:', error);
+          }
+
+          // Map items with equipment details
           const itemsWithEquipment = await Promise.all(
-            (order.items || []).map(async (item) => {
+            orderItems.map(async (item) => {
               try {
-                const equipmentRes = await axios.get(EQUIPMENT_ENDPOINTS.GET_BY_ID(item.equipmentId));
+                // Find equipment in the equipment prop first (more efficient)
+                const foundEquipment = equipment.find(e => e._id === item.equipmentId);
+                
+                if (foundEquipment) {
+                  return {
+                    ...item,
+                    id: item._id || item.id, // Ensure we have an id field
+                    equipmentName: foundEquipment.name,
+                    equipmentModel: foundEquipment.model,
+                    serialNumber: foundEquipment.serialNumber,
+                    total: item.total || (item.quantity * item.unitPrice)
+                  };
+                }
+
+                // Fallback to API call if not found in local equipment list
+                const equipmentRes = await axios.get(
+                  EQUIPMENT_ENDPOINTS.GET_BY_ID(item.equipmentId)
+                );
                 return {
                   ...item,
+                  id: item._id || item.id, // Ensure we have an id field
                   equipmentName: equipmentRes.data.name,
                   equipmentModel: equipmentRes.data.model,
-                  serialNumber: equipmentRes.data.serialNumber
+                  serialNumber: equipmentRes.data.serialNumber,
+                  total: item.total || (item.quantity * item.unitPrice)
                 };
               } catch (error) {
                 console.error('Error fetching equipment details:', error);
                 return {
                   ...item,
-                  equipmentName: '-',
+                  id: item._id || item.id, // Ensure we have an id field
+                  equipmentName: 'Equipment not found',
                   equipmentModel: '-',
-                  serialNumber: '-'
+                  serialNumber: '-',
+                  total: item.total || (item.quantity * item.unitPrice)
                 };
               }
             })
           );
 
+          console.log('Original order data:', order);
+          console.log('Order items from API:', orderItems);
+          console.log('Processed items:', itemsWithEquipment);
+
+          const currentVendor = vendors.find(v => v._id === order.vendorId);
+          setSelectedVendor(currentVendor);
+
+          // Filter equipment based on vendor's equipment_provided array
+          const vendorEquipment = currentVendor?.equipmentProvided 
+            ? equipment.filter(e => currentVendor.equipmentProvided.includes(e._id))
+            : [];
+
+          setFilteredEquipment(vendorEquipment);
+
           setForm({
-            ...order,
+            poNumber: order.poNumber,
+            vendorId: order.vendorId,
             dateIssued: dayjs(order.dateIssued),
+            status: order.status,
+            requestedBy: order.requestedBy,
+            approvedBy: order.approvedBy,
+            totalAmount: order.totalAmount || itemsWithEquipment.reduce((sum, item) => sum + (item.total || 0), 0),
             deliveryDate: order.deliveryDate ? dayjs(order.deliveryDate) : null,
+            paymentStatus: order.paymentStatus,
             items: itemsWithEquipment,
-            totalAmount: itemsWithEquipment.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)
+            notes: order.notes,
+            priority: order.priority || 'Normal'
           });
         } else {
+          // For new order
           setForm({
             poNumber: generatePONumber(),
             vendorId: '',
@@ -126,21 +180,21 @@ export default function PurchaseOrderForm({
             notes: '',
             priority: 'Normal'
           });
+          setSelectedVendor(null);
+          setFilteredEquipment([]);
         }
+      } catch (error) {
+        console.error('Error loading order data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadOrderData();
-  }, [order]);
-
-  // const generatePONumber = () => {
-  //   const date = new Date().toLocaleDateString();
-  //   const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-  //   return `PO-${date}-${randomNum}`;
-  // };
-
+    if (open) {
+      loadOrderData();
+    }
+  }, [order, equipment, vendors, open]);
+  
   const generatePONumber = () => {
     const year = new Date().getFullYear();
     const month = (new Date().getMonth() + 1).toString().padStart(2, '0');
@@ -151,36 +205,95 @@ export default function PurchaseOrderForm({
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm({...form, [name]: value});
+    
+    if (name === 'vendorId') {
+      const vendor = vendors.find(v => v._id === value);
+      setSelectedVendor(vendor);
+
+      // Filter equipment based on vendor's equipment_provided array
+      const vendorEquipment = vendor?.equipmentProvided 
+        ? equipment.filter(e => vendor.equipmentProvided.includes(e._id))
+        : [];
+      
+      setFilteredEquipment(vendorEquipment);
+      
+      // Clear any selected equipment that doesn't belong to the new vendor
+      if (newItem.equipmentId) {
+        const isEquipmentValid = vendor?.equipmentProvided?.includes(newItem.equipmentId);
+        if (!isEquipmentValid) {
+          setNewItem(prev => ({
+            ...prev,
+            equipmentId: '',
+            unitPrice: 0,
+            searchTerm: ''
+          }));
+        }
+      }
+
+      setForm(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    } else {
+      setForm(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+
+    console.log('Selected Vendor:', selectedVendor);
+    console.log('Vendor Equipment IDs:', selectedVendor?.equipmentProvided);
+    console.log('Filtered Equipment:', filteredEquipment);
+    console.log('All Equipment:', equipment);
   };
 
   const handleDateChange = (name, value) => {
-    setForm({...form, [name]: value});
+    setForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleItemChange = (e) => {
     const { name, value } = e.target;
-    setNewItem({...newItem, [name]: name === 'quantity' || name === 'unitPrice' ? Number(value) : value});
+    setNewItem(prev => ({
+      ...prev,
+      [name]: name === 'quantity' || name === 'unitPrice' ? Number(value) : value
+    }));
   };
 
   const handleEquipmentSearch = (value) => {
-    setNewItem({...newItem, searchTerm: value});
-    if (value) {
+    setNewItem(prev => ({
+      ...prev,
+      searchTerm: value
+    }));
+    
+    if (value && selectedVendor?.equipmentProvided) {
+      const filtered = equipment.filter(e => 
+        selectedVendor.equipmentProvided.includes(e._id) &&
+        (e.name?.toLowerCase().includes(value.toLowerCase()) || 
+         e.model?.toLowerCase().includes(value.toLowerCase()) ||
+         e.serialNumber?.toLowerCase().includes(value.toLowerCase()))
+      );
+      setFilteredEquipment(filtered);
+    } else if (selectedVendor?.equipmentProvided) {
       setFilteredEquipment(
-        equipment.filter(e => 
-          e.name.toLowerCase().includes(value.toLowerCase()) || 
-          e.model.toLowerCase().includes(value.toLowerCase()) ||
-          e.serialNumber.toLowerCase().includes(value.toLowerCase())
-        ))
+        equipment.filter(e => selectedVendor.equipmentProvided.includes(e._id))
+      );
     } else {
-      setFilteredEquipment(equipment);
+      setFilteredEquipment([]);
     }
+
+    console.log('Selected Vendor:', selectedVendor);
+    console.log('Vendor Equipment IDs:', selectedVendor?.equipmentProvided);
+    console.log('Filtered Equipment:', filteredEquipment);
+    console.log('All Equipment:', equipment);
   };
 
   const addItem = () => {
     if (!newItem.equipmentId) return;
     
-    const selectedEquipment = equipment.find(e => e.id === newItem.equipmentId);
+    const selectedEquipment = equipment.find(e => e._id === newItem.equipmentId);
     const itemTotal = (newItem.quantity || 0) * (newItem.unitPrice || 0);
     
     const updatedItems = [
@@ -195,11 +308,11 @@ export default function PurchaseOrderForm({
       }
     ];
     
-    setForm({
-      ...form,
+    setForm(prev => ({
+      ...prev,
       items: updatedItems,
       totalAmount: updatedItems.reduce((sum, item) => sum + (item.total || 0), 0)
-    });
+    }));
     
     setNewItem({
       equipmentId: '',
@@ -207,41 +320,30 @@ export default function PurchaseOrderForm({
       unitPrice: 0,
       searchTerm: ''
     });
-    setFilteredEquipment(equipment);
+    
+    // Reset filtered equipment to vendor's full equipment list
+    if (selectedVendor?.equipmentProvided) {
+      setFilteredEquipment(
+        equipment.filter(e => selectedVendor.equipmentProvided.includes(e._id))
+      );
+    }
   };
 
   const removeItem = (id) => {
     const updatedItems = form.items.filter(item => item.id !== id);
-    setForm({
-      ...form,
+    setForm(prev => ({
+      ...prev,
       items: updatedItems,
       totalAmount: updatedItems.reduce((sum, item) => sum + item.total, 0)
-    });
+    }));
   };
 
-  // const handleSubmit = () => {
-  //   const submissionData = {
-  //     ...form,
-  //     dateIssued: form.dateIssued.toISOString(),
-  //     deliveryDate: form.deliveryDate?.toISOString(),
-  //     items: form.items.map(item => ({
-  //       equipmentId: item.equipmentId,
-  //       quantity: item.quantity,
-  //       unitPrice: item.unitPrice
-  //     }))
-  //   };
-    
-  //   onSave(submissionData);
-  // };
-  // In your handleSubmit function
-
-const handleSubmit = () => {
-    // Generate PO number if it doesn't exist
-    const poNumber = form.poNumber || generatePONumber();
+  const handleSubmit = () => {
+    const poNumber = order ? form.poNumber : generatePONumber();
     
     const submissionData = {
       ...form,
-      poNumber, // Ensure this is included
+      poNumber,
       dateIssued: form.dateIssued.toISOString(),
       deliveryDate: form.deliveryDate?.toISOString(),
       items: form.items.map(item => ({
@@ -252,7 +354,7 @@ const handleSubmit = () => {
     };
     
     onSave(submissionData);
-};
+  };
 
   const getStatusColor = (status) => {
     switch(status) {
@@ -279,7 +381,7 @@ const handleSubmit = () => {
         <DialogTitle>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="h6">
-              {order ? 'Edit Purchase Order' : 'Create Purchase Order'}
+              {order ? 'Edit Purchase Order' : 'Create New Purchase Order'}
             </Typography>
             {order && (
               <Tooltip title="Order notifications">
@@ -334,70 +436,76 @@ const handleSubmit = () => {
             </Box>
           ) : (
             <Grid container spacing={3}>
-              {/* Header Section */}
-              <Grid item xs={12}>
-                <Stack direction="row" spacing={2} alignItems="center">
+              {/* Header Section - Only show PO Number for edit mode */}
+              {order && (
+                <Grid item xs={12}>
                   <TextField
                     name="poNumber"
                     label="PO Number"
                     value={form.poNumber}
                     onChange={handleChange}
+                    fullWidth
                     disabled
-                    sx={{ width: 200 }}
                   />
-                  <FormControl sx={{ width: 200 }}>
-                    <InputLabel>Priority</InputLabel>
+                </Grid>
+              )}
+
+              <Grid item xs={12}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <FormControl sx={{ minWidth: 200 }}>
+                    <InputLabel id="priority-label">Priority Level</InputLabel>
                     <Select
                       name="priority"
                       value={form.priority}
-                      label="Priority"
+                      label="Priority Level"
                       onChange={handleChange}
                     >
-                      <MenuItem value="High">High</MenuItem>
-                      <MenuItem value="Medium">Medium</MenuItem>
-                      <MenuItem value="Normal">Normal</MenuItem>
-                      <MenuItem value="Low">Low</MenuItem>
+                      <MenuItem value="High">High Priority</MenuItem>
+                      <MenuItem value="Medium">Medium Priority</MenuItem>
+                      <MenuItem value="Normal">Normal Priority</MenuItem>
+                      <MenuItem value="Low">Low Priority</MenuItem>
                     </Select>
                   </FormControl>
                   <Chip 
                     label={form.priority} 
                     color={getPriorityColor(form.priority)}
-                    size="small"
+                    size="medium"
                   />
                 </Stack>
               </Grid>
 
-              {/* Vendor and Dates Section */}
+              {/* Vendor Section */}
               <Grid item xs={12} md={6}>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Vendor *</InputLabel>
+                <FormControl fullWidth>
+                  <InputLabel id="vendor-label">Select Vendor *</InputLabel>
                   <Select
                     name="vendorId"
                     value={form.vendorId}
-                    label="Vendor *"
+                    label="Select Vendor *"
                     onChange={handleChange}
                     required
                   >
                     {vendors.map(vendor => (
-                      <MenuItem key={vendor.id} value={vendor.id}>
-                        {vendor.name}
+                      <MenuItem key={vendor._id} value={vendor._id}>
+                        {vendor.name} - {vendor.contact_person}
                       </MenuItem>
                     ))}
                   </Select>
                 </FormControl>
               </Grid>
               
+              {/* Status Section */}
               <Grid item xs={12} md={6}>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Status *</InputLabel>
+                <FormControl fullWidth>
+                  <InputLabel id="status-label">Order Status *</InputLabel>
                   <Select
                     name="status"
                     value={form.status}
-                    label="Status *"
+                    label="Order Status *"
                     onChange={handleChange}
                     required
                   >
-                    <MenuItem value="Pending">Pending</MenuItem>
+                    <MenuItem value="Pending">Pending Approval</MenuItem>
                     <MenuItem value="Approved">Approved</MenuItem>
                     <MenuItem value="Delivered">Delivered</MenuItem>
                     <MenuItem value="Cancelled">Cancelled</MenuItem>
@@ -405,9 +513,10 @@ const handleSubmit = () => {
                 </FormControl>
               </Grid>
 
+              {/* Dates Section */}
               <Grid item xs={12} md={6}>
                 <DatePicker
-                  label="Date Issued *"
+                  label="Order Date *"
                   value={form.dateIssued}
                   onChange={(date) => handleDateChange('dateIssued', date)}
                   slotProps={{ textField: { fullWidth: true, required: true } }}
@@ -416,17 +525,17 @@ const handleSubmit = () => {
 
               <Grid item xs={12} md={6}>
                 <DatePicker
-                  label="Delivery Date"
+                  label="Expected Delivery Date"
                   value={form.deliveryDate}
                   onChange={(date) => handleDateChange('deliveryDate', date)}
                   slotProps={{ textField: { fullWidth: true } }}
                 />
               </Grid>
 
-              {/* Payment and Approval Section */}
+              {/* Payment Section */}
               <Grid item xs={12} md={6}>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Payment Status *</InputLabel>
+                <FormControl fullWidth>
+                  <InputLabel id="payment-status-label">Payment Status *</InputLabel>
                   <Select
                     name="paymentStatus"
                     value={form.paymentStatus}
@@ -434,32 +543,32 @@ const handleSubmit = () => {
                     onChange={handleChange}
                     required
                   >
-                    <MenuItem value="Pending">Pending</MenuItem>
-                    <MenuItem value="Partial">Partial</MenuItem>
-                    <MenuItem value="Paid">Paid</MenuItem>
+                    <MenuItem value="Pending">Payment Pending</MenuItem>
+                    <MenuItem value="Partial">Partial Payment</MenuItem>
+                    <MenuItem value="Paid">Payment Completed</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
 
+              {/* Requested By Section */}
               <Grid item xs={12} md={6}>
                 <TextField
                   name="requestedBy"
-                  label="Requested By"
+                  label="Requested By *"
                   fullWidth
-                  margin="normal"
                   value={form.requestedBy}
                   onChange={handleChange}
+                  required
                 />
               </Grid>
 
-              {/* Only show Approved By if it has a value when editing */}
+              {/* Approved By Section - Only visible when editing and has value */}
               {(order && form.approvedBy) && (
                 <Grid item xs={12} md={6}>
                   <TextField
                     name="approvedBy"
                     label="Approved By"
                     fullWidth
-                    margin="normal"
                     value={form.approvedBy}
                     onChange={handleChange}
                     disabled
@@ -467,49 +576,53 @@ const handleSubmit = () => {
                 </Grid>
               )}
 
+              {/* Notes Section */}
               <Grid item xs={12}>
                 <TextField
                   name="notes"
-                  label="Notes"
+                  label="Order Notes"
                   fullWidth
-                  margin="normal"
+                  multiline
+                  rows={3}
                   value={form.notes}
                   onChange={handleChange}
-                  multiline
-                  rows={2}
+                  placeholder="Enter any additional notes or instructions for this order"
                 />
               </Grid>
 
               {/* Order Items Section */}
               <Grid item xs={12}>
                 <Divider sx={{ my: 2 }} />
-                <Typography variant="subtitle1" gutterBottom>
+                <Typography variant="h6" gutterBottom>
                   Order Items
                 </Typography>
                 
                 {/* Add Item Form */}
-                <Paper elevation={1} sx={{ p: 2, mb: 2 }}>
-                  <Grid container spacing={2} alignItems="center">
+                <Paper elevation={2} sx={{ p: 2, mb: 2, backgroundColor: '#f5f5f5' }}>
+                  <Grid container spacing={2} alignItems="flex-end">
                     <Grid item xs={12} md={5}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Select Equipment
+                      </Typography>
                       <Autocomplete
                         options={filteredEquipment}
                         getOptionLabel={(option) => 
                           `${option.name} (${option.model}) - ${option.serialNumber}`
                         }
-                        value={equipment.find(e => e.id === newItem.equipmentId) || null}
+                        value={equipment.find(e => e._id === newItem.equipmentId) || null}
                         onChange={(e, newValue) => {
-                          setNewItem({
-                            ...newItem,
-                            equipmentId: newValue?.id || '',
+                          setNewItem(prev => ({
+                            ...prev,
+                            equipmentId: newValue?._id || '',
                             unitPrice: newValue?.unitPrice || 0
-                          });
+                          }));
                         }}
                         inputValue={newItem.searchTerm}
                         onInputChange={(e, value) => handleEquipmentSearch(value)}
                         renderInput={(params) => (
                           <TextField 
                             {...params} 
-                            label="Search Equipment" 
+                            placeholder={form.vendorId ? "Search equipment..." : "Please select a vendor first"}
                             InputProps={{
                               ...params.InputProps,
                               startAdornment: (
@@ -519,16 +632,31 @@ const handleSubmit = () => {
                                 </>
                               )
                             }}
+                            disabled={!form.vendorId}
                           />
                         )}
                         fullWidth
+                        noOptionsText={
+                          form.vendorId 
+                            ? filteredEquipment.length === 0 
+                              ? "This vendor has no equipment assigned" 
+                              : "No matching equipment found"
+                            : "Select a vendor to see equipment"
+                        }
                       />
+                      {!form.vendorId && (
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                          Please select a vendor above to see available equipment
+                        </Typography>
+                      )}
                     </Grid>
                     
                     <Grid item xs={6} md={2}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Quantity
+                      </Typography>
                       <TextField
                         name="quantity"
-                        label="Quantity"
                         type="number"
                         value={newItem.quantity}
                         onChange={handleItemChange}
@@ -538,9 +666,11 @@ const handleSubmit = () => {
                     </Grid>
                     
                     <Grid item xs={6} md={2}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Unit Price ($)
+                      </Typography>
                       <TextField
                         name="unitPrice"
-                        label="Unit Price"
                         type="number"
                         value={newItem.unitPrice}
                         onChange={handleItemChange}
@@ -558,7 +688,7 @@ const handleSubmit = () => {
                         fullWidth
                         sx={{ height: '56px' }}
                       >
-                        Add Item
+                        Add to Order
                       </Button>
                     </Grid>
                   </Grid>
@@ -566,27 +696,27 @@ const handleSubmit = () => {
                 
                 {/* Items Table */}
                 <TableContainer component={Paper} sx={{ mb: 2 }}>
-                  <Table size="small">
+                  <Table>
                     <TableHead>
                       <TableRow>
-                        <TableCell>Equipment</TableCell>
-                        <TableCell>Model</TableCell>
-                        <TableCell>Serial No.</TableCell>
-                        <TableCell align="right">Qty</TableCell>
-                        <TableCell align="right">Unit Price</TableCell>
-                        <TableCell align="right">Total</TableCell>
-                        <TableCell align="center">Action</TableCell>
+                        <TableCell><strong>Equipment</strong></TableCell>
+                        <TableCell><strong>Model</strong></TableCell>
+                        <TableCell><strong>Serial No.</strong></TableCell>
+                        <TableCell align="right"><strong>Quantity</strong></TableCell>
+                        <TableCell align="right"><strong>Unit Price ($)</strong></TableCell>
+                        <TableCell align="right"><strong>Total ($)</strong></TableCell>
+                        <TableCell align="center"><strong>Actions</strong></TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {form.items.map((item) => (
-                        <TableRow key={item.id}>
+                        <TableRow key={item.id} hover>
                           <TableCell>{item.equipmentName}</TableCell>
                           <TableCell>{item.equipmentModel}</TableCell>
                           <TableCell>{item.serialNumber}</TableCell>
                           <TableCell align="right">{item.quantity}</TableCell>
-                          <TableCell align="right">${item.unitPrice.toFixed(2)}</TableCell>
-                          <TableCell align="right">${(item.total || 0).toFixed(2)}</TableCell>
+                          <TableCell align="right">{item.unitPrice.toFixed(2)}</TableCell>
+                          <TableCell align="right">{(item.total || 0).toFixed(2)}</TableCell>
                           <TableCell align="center">
                             <IconButton 
                               onClick={() => removeItem(item.id)}
@@ -600,8 +730,10 @@ const handleSubmit = () => {
                       ))}
                       {form.items.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={7} align="center">
-                            No items added
+                          <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                            <Typography variant="body1" color="text.secondary">
+                              No items added to this order yet
+                            </Typography>
                           </TableCell>
                         </TableRow>
                       )}
@@ -609,27 +741,28 @@ const handleSubmit = () => {
                   </Table>
                 </TableContainer>
                 
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <Typography variant="h6">
-                    Total Amount: ${(form.totalAmount || 0).toFixed(2)}
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+                  <Typography variant="h5">
+                    <strong>Total Amount: ${(form.totalAmount || 0).toFixed(2)}</strong>
                   </Typography>
                 </Box>
               </Grid>
             </Grid>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={onClose} variant="outlined">
+        <DialogActions sx={{ p: 3, justifyContent: 'space-between' }}>
+          <Button onClick={onClose} variant="outlined" size="large">
             Cancel
           </Button>
           <Button 
             onClick={handleSubmit} 
             variant="contained" 
             color="primary"
+            size="large"
             disabled={!form.vendorId || form.items.length === 0}
-            sx={{ minWidth: 120 }}
+            sx={{ minWidth: 200 }}
           >
-            {order ? 'Update Order' : 'Create Order'}
+            {order ? 'Update Purchase Order' : 'Create Purchase Order'}
           </Button>
         </DialogActions>
       </Dialog>
