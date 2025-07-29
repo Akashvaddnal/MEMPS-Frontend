@@ -55,3 +55,14 @@ export const STOCK_LEVELS_ENDPOINTS = {
   UPDATE: (id) => `${BASE_URL}/api/stock-levels/stock-levels/${id}`,
   DELETE: (id) => `${BASE_URL}/api/stock-levels/${id}`,
 };
+
+
+export const DEPARTMENT_ENDPOINTS = {
+  CREATE: `${BASE_URL}/api/departments`,
+  GET_ALL: `${BASE_URL}/api/departments`,
+  GET_BY_ID: (id) => `${BASE_URL}/api/departments/${id}`,
+  UPDATE: (id) => `${BASE_URL}/api/departments/${id}`,
+  DELETE: (id) => `${BASE_URL}/api/departments/${id}`,
+  ASSIGN_EQUIPMENT: (deptId, equipmentId) =>
+    `${BASE_URL}/api/departments/${deptId}/assign-equipment/${equipmentId}`
+};

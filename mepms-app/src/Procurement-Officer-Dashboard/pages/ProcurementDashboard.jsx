@@ -264,7 +264,7 @@ export default function ProcurementDashboard() {
     try {
       // First save the order
       const orderPromise = currentOrder 
-        ? axios.put(PURCHASE_ORDER_ENDPOINTS.UPDATE(currentOrder._id), data)
+        ? axios.put(PURCHASE_ORDER_ENDPOINTS.UPDATE(currentOrder.id||currentOrder._id), data)
         : axios.post(PURCHASE_ORDER_ENDPOINTS.CREATE, data);
       
       const orderRes = await orderPromise;
@@ -291,15 +291,15 @@ export default function ProcurementDashboard() {
           };
           
           return item._id 
-            ? axios.put(PURCHASE_ORDER_ITEM_ENDPOINTS.UPDATE(item._id), itemData)
+            ? axios.put(PURCHASE_ORDER_ITEM_ENDPOINTS.UPDATE(item._id||item.id), itemData)
             : axios.post(PURCHASE_ORDER_ITEM_ENDPOINTS.CREATE, itemData);
         })
       );
 
       // Delete any removed items if editing
       if (currentOrder && Array.isArray(currentOrder.items)) {
-        const currentItemIds = currentOrder.items.map(i => i._id).filter(Boolean);
-        const newItemIds = itemsToProcess.map(i => i._id).filter(Boolean);
+        const currentItemIds = currentOrder.items.map(i => i._id||i.id).filter(Boolean);
+        const newItemIds = itemsToProcess.map(i => i._id||i.id).filter(Boolean);
         const itemsToDelete = currentItemIds.filter(id => !newItemIds.includes(id));
         
         await Promise.all(

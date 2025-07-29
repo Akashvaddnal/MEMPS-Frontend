@@ -1,3 +1,5 @@
+
+// src/components/inventory/EquipmentCard.jsx
 import React, { useEffect, useState, useCallback } from "react";
 import {
   Box,
@@ -18,179 +20,232 @@ import {
   Typography,
   Grid,
   Divider,
+  Chip,
+  Tooltip,
+  Avatar,
 } from "@mui/material";
 import axios from "axios";
 import dayjs from "dayjs";
 import {
   EQUIPMENT_ENDPOINTS,
   EQUIPMENT_USAGE_ENDPOINTS,
+  DEPARTMENT_ENDPOINTS,
   MAINTENANCE_REQUEST_ENDPOINTS,
 } from "../../api/endpoints";
+// import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 
-// Helper for date display fields
-function formatDate(dateString, fmt = "YYYY-MM-DD") {
-  if (!dateString) return "";
-  const d = dayjs(dateString);
-  return d.isValid() ? d.format(fmt) : "";
+dayjs.extend(customParseFormat);
+
+/**
+ * Parse and format various date formats consistently.
+ * @param {*} dateInput can be:
+ *   - string ISO date
+ *   - string verbose date (e.g. "Sat May 10 13:30:00 IST 2025")
+ *   - object with {$date: string}
+ * @param {string} fmt format string (default: "YYYY-MM-DD")
+ * @returns formatted date string or "-"
+ */
+function formatDate(dateInput, fmt = "YYYY-MM-DD") {
+  if (!dateInput) return "-";
+
+  // If dateInput is object with $date
+  if (typeof dateInput === "object" && "$date" in dateInput) {
+    dateInput = dateInput.$date;
+  }
+
+  // Try parse with dayjs ISO first
+  let d = dayjs(dateInput);
+
+  if (d.isValid()) {
+    return d.format(fmt);
+  }
+
+  // Try parsing verbose format e.g. Sat May 10 13:30:00 IST 2025
+  // Define a common format string
+  const verboseFormat = "ddd MMM DD HH:mm:ss [IST] YYYY";
+
+  d = dayjs(dateInput, verboseFormat, true);
+  if (d.isValid()) {
+    return d.format(fmt);
+  }
+
+  // Fallback: try JS Date parsing (not always reliable but may help)
+  const jsDate = new Date(dateInput);
+  if (!isNaN(jsDate.getTime())) {
+    return dayjs(jsDate).format(fmt);
+  }
+
+  // Otherwise invalid date
+  return "-";
 }
 
-const STATUS_OPTIONS = ["Functional", "Under Repair", "Out of Service", "Available", "Maintenance"];
+
+// Helper for displaying formatted dates (with fallback)
+// function formatDate(dateString, fmt = "YYYY-MM-DD") {
+//   if (!dateString) return "-";
+//   const d = dayjs(dateString);
+//   return d.isValid() ? d.format(fmt) : "-";
+// }
+
+const STATUS_OPTIONS = [
+  "Functional",
+  "Under Repair",
+  "Out of Service",
+  "Available",
+  "Maintenance",
+];
 
 const EquipmentCard = ({ equipment, onUpdate, onDelete }) => {
+  // Image upload
   const [imageFile, setImageFile] = useState(null);
-  const [usageData, setUsageData] = useState([]);
-  const [currentUsage, setCurrentUsage] = useState(null);
-  const [reservedUsage, setReservedUsage] = useState(null);
+
+  // Dialog controls
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editing, setEditing] = useState(false);
 
-  // Dialog form state for all equipment fields
+  // Form state
   const [formData, setFormData] = useState({ ...equipment });
 
-  // Maintenance modal
+  // Usage info
+  const [usageCount, setUsageCount] = useState(0);
+
+  // Department allocation
+  const [departmentsInfo, setDepartmentsInfo] = useState([]);
+
+  // Maintenance
   const [isMaintenanceOpen, setIsMaintenanceOpen] = useState(false);
   const [maintenanceForm, setMaintenanceForm] = useState({
     issueDescription: "",
     maintenanceType: "Preventive",
   });
 
-  // Effect: whenever equipment prop changes or dialog opens, reset form
+  // Reset formData on open/receive new equipment
   useEffect(() => {
     setFormData({ ...equipment });
     setEditing(false);
     setImageFile(null);
   }, [equipment, isDialogOpen]);
 
-  // Fetch usage info for display & linking by equipmentId
-  const fetchUsageData = useCallback(async () => {
+  // Fetch current equipment usage
+  const fetchUsageCount = useCallback(async () => {
     if (!equipment?.id) return;
     try {
-      const res = await axios.get(EQUIPMENT_USAGE_ENDPOINTS.GET_BY_EQUIPMENT_ID(equipment.id));
-      const data = res.data || [];
-      setUsageData(data);
-
-      // Logic for currently "in use"
-      const now = dayjs();
-      const running = data.find((u) => {
-        const start = dayjs(u.usageStart || u.usage_start);
-        const end = dayjs(u.usageEnd || u.usage_end);
-        return u.status === "In Use" && now.isAfter(start) && now.isBefore(end);
-      });
-      setCurrentUsage(running || null);
-
-      const future = data
-        .filter(
-          (u) => {
-            const start = dayjs(u.usageStart || u.usage_start);
-            return (u.status === "Reserved" || u.status === "Scheduled") && start.isAfter(now);
-          }
-        )
-        .sort((a, b) =>
-          dayjs(a.usageStart || a.usage_start).unix() - dayjs(b.usageStart || b.usage_start).unix()
-        );
-      setReservedUsage(future.length > 0 ? future[0] : null);
+      const response = await axios.get(
+        EQUIPMENT_USAGE_ENDPOINTS.GET_BY_EQUIPMENT_ID(equipment.id)
+      );
+      const inUseCount = (response.data || []).filter(u => u.status === "In Use").length;
+      setUsageCount(inUseCount);
     } catch {
-      setUsageData([]);
-      setCurrentUsage(null);
-      setReservedUsage(null);
+      setUsageCount(0);
+    }
+  }, [equipment?.id]);
+
+  // Fetch department assignments for this equipment
+  const fetchDepartmentsInfo = useCallback(async () => {
+    try {
+      const res = await axios.get(DEPARTMENT_ENDPOINTS.GET_ALL);
+      const equipmentId = equipment.id;
+      setDepartmentsInfo(
+        (res.data || [])
+          .filter(dep => dep.equipmentInventory && dep.equipmentInventory[equipmentId] > 0)
+          .map(dep => ({
+            name: dep.name,
+            count: dep.equipmentInventory[equipmentId],
+            location: dep.location,
+          }))
+      );
+    } catch {
+      setDepartmentsInfo([]);
     }
   }, [equipment?.id]);
 
   useEffect(() => {
-    fetchUsageData();
-  }, [fetchUsageData]);
+    fetchUsageCount();
+    fetchDepartmentsInfo();
+  }, [fetchUsageCount, fetchDepartmentsInfo]);
 
-  // Image upload helpers
-  const handleImageChange = (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setImageFile(e.target.files[0]);
-    }
-  };
-  const toBase64 = (file) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+  // Image file to base64 helper
+  const toBase64 = file =>
+    new Promise((resolve, reject) => {
+      const reader = new window.FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+      reader.readAsDataURL(file);
+    });
 
-  // Card summary content
-  const isAvailable = !currentUsage;
-  const usedBy = currentUsage?.usedBy || currentUsage?.used_by || "-";
-  const reservedBy = reservedUsage?.reservedBy || reservedUsage?.reserved_by || "-";
-  const usagePurpose = currentUsage?.purpose || reservedUsage?.purpose || "-";
-  const usageTime = currentUsage
-    ? `${formatDate(currentUsage.usageStart || currentUsage.usage_start, "HH:mm")} - ${formatDate(
-        currentUsage.usageEnd || currentUsage.usage_end,
-        "HH:mm"
-      )}`
-    : reservedUsage
-    ? formatDate(reservedUsage.usageStart || reservedUsage.usage_start, "YYYY-MM-DD HH:mm")
-    : "-";
-
-  // In-card summary
+  // Core Card UI
   return (
     <>
-      {/* <Card sx={{ width: 340, m: 1, display: "flex", flexDirection: "column" }}>
+      <Card sx={{ width: 360, m: 1, display: "flex", flexDirection: "column", borderRadius: 3, boxShadow: 6 }}>
         <CardMedia
           component="img"
-          height={160}
-          image={equipment.image || undefined}
-          alt={equipment.name || "Equipment Image"}
-          sx={{ objectFit: "contain", bgcolor: "#f2f2f2" }}
-        /> */}
-        <Card sx={{ width: 340, m: 1, display: "flex", flexDirection: "column" }}>
-        <CardMedia
-            component="img"
-            height={160}
-            image={equipment.image || undefined}
-            alt={equipment.name || "Equipment Image"}
-            sx={{
-            width: "100%",
-            height: 160,
-            objectFit: "cover", // Fills entire box and crops as needed
-            bgcolor: "#f2f2f2",
-            display: "block",
-            }}
+          height={180}
+          image={equipment.image || "/no-equipment.png"}
+          alt={equipment.name || "Equipment"}
+          sx={{ bgcolor: "#f6f6fa", objectFit: "cover", borderRadius: "8px 8px 0 0" }}
         />
+        
         <CardContent sx={{ flexGrow: 1 }}>
-          <Typography variant="h6">{equipment.name}</Typography>
-          <Typography variant="caption" color="text.secondary">
-            {equipment.model} &nbsp;|&nbsp; S/N: {equipment.serialNumber}
-          </Typography>
-          <Divider sx={{ my: 1 }} />
-          <Typography>Status: {equipment.status}</Typography>
-          <Typography>Location: {equipment.location || "-"}</Typography>
-          <Typography>Quantity: {equipment.quantity}</Typography>
-          <Typography color={isAvailable ? "success.main" : "warning.main"}>
-            {isAvailable ? "Available" : "In Use"}
-          </Typography>
-          <Typography>
-            <span>Used by: </span>
-            <b>{usedBy}</b>
-          </Typography>
-          <Typography>
-            <span>Reserved by: </span>
-            <b>{reservedBy}</b>
-          </Typography>
-          <Typography noWrap title={usagePurpose}>
-            Purpose: {usagePurpose}
-          </Typography>
+          <Typography variant="h6" gutterBottom>{equipment.name}</Typography>
+          <Grid container spacing={1}>
+            <Grid item xs={6}>
+              <Typography variant="body2">Model: <b>{equipment.model}</b></Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2">Serial #: <b>{equipment.serialNumber}</b></Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="body2">Category: <b>{equipment.category}</b></Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2">Total: <b>{equipment.quantity}</b></Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2">
+                Available:{" "}
+                <Chip
+                  label={equipment.currentStock || 0}
+                  color={equipment.currentStock > 0 ? "success" : "default"}
+                  size="small"
+                  sx={{ fontWeight: "bold", fontSize: 14 }}
+                />
+              </Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="body2" gutterBottom>
+                Type: <b>{equipment.category || "-"}</b>
+              </Typography>
+            </Grid>
+          </Grid>
+          <Divider sx={{ mt: 1, mb: 1 }} />
+          <Grid container spacing={1} alignItems="center">
+            <Grid item xs>
+              <Typography color={equipment.currentStock > 0 ? "success.main" : "error.main"} fontWeight={600}>
+                {equipment.currentStock > 0 ? "Available" : "Unavailable"}
+              </Typography>
+            </Grid>
+            <Grid item>
+              {usageCount > 0 && (
+                <Tooltip title="Currently in use by departments or users">
+                  <Chip
+                    icon={<Avatar sx={{ width: 20, height: 20, bgcolor: "#f5b144" }}>{usageCount}</Avatar>}
+                    label={`In Use`}
+                    color="warning"
+                    size="small"
+                    sx={{ ml: 0.5, fontWeight: 500 }}
+                  />
+                </Tooltip>
+              )}
+            </Grid>
+          </Grid>
         </CardContent>
         <CardActions sx={{ justifyContent: "space-between" }}>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => setIsDialogOpen(true)}
-          >
-            View Details
+          <Button variant="contained" size="small" onClick={() => setIsDialogOpen(true)}>
+            View
           </Button>
-          <Button
-            size="small"
-            color="error"
-            variant="outlined"
-            onClick={() => onDelete(equipment.id)}
-          >
-            Delete
+          <Button size="small" color="error" variant="outlined" onClick={() => onDelete(equipment.id || equipment._id)}>
+            Remove
           </Button>
         </CardActions>
       </Card>
@@ -209,8 +264,8 @@ const EquipmentCard = ({ equipment, onUpdate, onDelete }) => {
           Equipment Details
           <Button
             sx={{ float: "right" }}
-            variant="contained"
-            onClick={() => setEditing((e) => !e)}
+            variant={editing ? "outlined" : "contained"}
+            onClick={() => setEditing(e => !e)}
             size="small"
           >
             {editing ? "Cancel Edit" : "Edit"}
@@ -218,204 +273,227 @@ const EquipmentCard = ({ equipment, onUpdate, onDelete }) => {
         </DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={2}>
-            {/* All fields, most as display-only unless editing */}
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Name"
-                name="name"
-                value={formData.name || ""}
-                disabled
-                fullWidth
-                margin="dense"
-              />
+            {/* Image */}
+            <Grid item xs={12} sm={4}>
+              <Box sx={{ textAlign: "center" }}>
+                <img
+                  src={formData.image || "/no-equipment.png"}
+                  alt={formData.name}
+                  style={{ width: 150, height: 150, objectFit: "cover", borderRadius: 12, background: "#f0f0f3" }}
+                />
+                <Box mt={1}>
+                  <Button variant="outlined" size="small" component="label" disabled={!editing}>
+                    Upload
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*"
+                      onChange={e => setImageFile(e.target.files && e.target.files[0])}
+                    />
+                  </Button>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    sx={{ ml: 1 }}
+                    disabled={!imageFile || !editing}
+                    onClick={async () => {
+                      if (!imageFile) return;
+                      const base64Image = await toBase64(imageFile);
+                      const payload = { ...formData, image: base64Image, updatedAt: new Date().toISOString() };
+                      const res = await axios.put(EQUIPMENT_ENDPOINTS.UPDATE(equipment.id), payload, {
+                        headers: { "Content-Type": "application/json" },
+                      });
+                      setFormData(res.data);
+                      setImageFile(null);
+                      onUpdate(res.data);
+                    }}
+                  >
+                    Save
+                  </Button>
+                </Box>
+              </Box>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Model"
-                name="model"
-                value={formData.model || ""}
-                disabled
-                fullWidth
-                margin="dense"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Serial Number"
-                name="serialNumber"
-                value={formData.serialNumber || ""}
-                disabled
-                fullWidth
-                margin="dense"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Category"
-                name="category"
-                value={formData.category || ""}
-                onChange={editing ? e => setFormData(f => ({ ...f, category: e.target.value })) : undefined}
-                disabled={!editing}
-                fullWidth
-                margin="dense"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Location"
-                name="location"
-                value={formData.location || ""}
-                onChange={editing ? e => setFormData(f => ({ ...f, location: e.target.value })) : undefined}
-                disabled={!editing}
-                fullWidth
-                margin="dense"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Quantity"
-                name="quantity"
-                type="number"
-                value={formData.quantity}
-                onChange={editing ? e => setFormData(f => ({ ...f, quantity: Number(e.target.value) })) : undefined}
-                disabled={!editing}
-                fullWidth
-                margin="dense"
-                inputProps={{ min: 0 }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth margin="dense" disabled={!editing}>
-                <InputLabel>Status</InputLabel>
-                <Select
-                  name="status"
-                  value={formData.status || "Available"}
-                  label="Status"
-                  onChange={editing ? e => setFormData(f => ({ ...f, status: e.target.value })) : undefined}
-                >
-                  {STATUS_OPTIONS.map(opt => (
-                    <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Purchase Date"
-                name="purchaseDate"
-                value={formatDate(formData.purchaseDate)}
-                disabled
-                fullWidth
-                margin="dense"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Warranty End Date"
-                name="warrantyEndDate"
-                value={formatDate(formData.warrantyEndDate)}
-                disabled
-                fullWidth
-                margin="dense"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Expected Life (months)"
-                name="expectedLife"
-                value={formData.expectedLife || ""}
-                disabled
-                fullWidth
-                margin="dense"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Created At"
-                name="createdAt"
-                value={formatDate(formData.createdAt)}
-                disabled
-                fullWidth
-                margin="dense"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Updated At"
-                name="updatedAt"
-                value={formatDate(formData.updatedAt)}
-                disabled
-                fullWidth
-                margin="dense"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Button
-                variant="outlined"
-                size="small"
-                component="label"
-                fullWidth
-                disabled={!editing}
-              >
-                Upload Image
-                <input type="file" hidden accept="image/*" onChange={handleImageChange} />
-              </Button>
-              <Button
-                variant="contained"
-                size="small"
-                disabled={!imageFile || !editing}
-                onClick={async () => {
-                  if (!imageFile) return;
-                  const base64Image = await toBase64(imageFile);
-                  // Send only image update
-                  const payload = { ...formData, image: base64Image };
-                  const res = await axios.put(EQUIPMENT_ENDPOINTS.UPDATE(equipment.id), payload, {
-                    headers: { "Content-Type": "application/json" },
-                  });
-                  setFormData(res.data);
-                  onUpdate(res.data);
-                  setImageFile(null);
-                }}
-                sx={{ ml: 2 }}
-              >
-                Save Image
-              </Button>
-            </Grid>
-            {/* Usage info section */}
-            <Grid item xs={12}>
-              <Typography variant="subtitle2" sx={{ mt: 3 }}>
-                Usage Status: {isAvailable ? "Available" : (
-                  currentUsage ? (
-                    <>In Use by <b>{usedBy}</b>, Purpose: <i>{usagePurpose}</i></>
-                  ) : "In Use"
-                )}
-              </Typography>
-              {currentUsage && (
-                <Typography variant="body2" sx={{ ml: 1 }}>
-                  Start: {formatDate(currentUsage.usageStart || currentUsage.usage_start, "YYYY-MM-DD HH:mm")}
-                  &nbsp;–&nbsp;
-                  End: {formatDate(currentUsage.usageEnd || currentUsage.usage_end, "YYYY-MM-DD HH:mm")}
-                </Typography>
-              )}
-              {reservedUsage && (
-                <Typography variant="body2" sx={{ mt: 2, ml: 1, color: "#cc9800" }}>
-                  Reserved by: {reservedBy} &middot; Starts: {formatDate(reservedUsage.usageStart || reservedUsage.usage_start, "YYYY-MM-DD HH:mm")}
-                </Typography>
-              )}
+
+            {/* Info fields */}
+            <Grid item xs={12} sm={8}>
+              <Grid container spacing={1}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Name"
+                    name="name"
+                    value={formData.name || ""}
+                    fullWidth
+                    margin="dense"
+                    disabled
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Model"
+                    name="model"
+                    value={formData.model || ""}
+                    fullWidth
+                    margin="dense"
+                    disabled={!editing}
+                    onChange={e =>
+                      setFormData(f => ({ ...f, model: e.target.value }))
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Serial Number"
+                    name="serialNumber"
+                    value={formData.serialNumber || ""}
+                    fullWidth
+                    margin="dense"
+                    disabled={!editing}
+                    onChange={e =>
+                      setFormData(f => ({ ...f, serialNumber: e.target.value }))
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Category"
+                    name="category"
+                    value={formData.category || ""}
+                    fullWidth
+                    margin="dense"
+                    disabled={!editing}
+                    onChange={e =>
+                      setFormData(f => ({ ...f, category: e.target.value }))
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Location"
+                    name="location"
+                    value={formData.location || ""}
+                    fullWidth
+                    margin="dense"
+                    disabled={!editing}
+                    onChange={e =>
+                      setFormData(f => ({ ...f, location: e.target.value }))
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Quantity"
+                    name="quantity"
+                    type="number"
+                    value={formData.quantity}
+                    fullWidth
+                    margin="dense"
+                    inputProps={{ min: 0 }}
+                    disabled={!editing}
+                    onChange={e =>
+                      setFormData(f => ({ ...f, quantity: Number(e.target.value) }))
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth margin="dense" disabled={!editing}>
+                    <InputLabel>Status</InputLabel>
+                    <Select
+                      name="status"
+                      value={formData.status || "Available"}
+                      label="Status"
+                      onChange={e => setFormData(f => ({ ...f, status: e.target.value }))}
+                    >
+                      {STATUS_OPTIONS.map(opt => (
+                        <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Purchase Date"
+                    name="purchaseDate"
+                    value={formatDate(formData.purchaseDate)}
+                    fullWidth
+                    margin="dense"
+                    disabled
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Warranty End Date"
+                    name="warrantyEndDate"
+                    value={formatDate(formData.warrantyEndDate)}
+                    fullWidth
+                    margin="dense"
+                    disabled
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Expected Life (months)"
+                    name="expectedLife"
+                    value={formData.expectedLife || ""}
+                    fullWidth
+                    margin="dense"
+                    disabled
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Created At"
+                    name="createdAt"
+                    value={formatDate(formData.createdAt)}
+                    fullWidth
+                    margin="dense"
+                    disabled
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Updated At"
+                    name="updatedAt"
+                    value={formatDate(formData.updatedAt)}
+                    fullWidth
+                    margin="dense"
+                    disabled
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Current Stock"
+                    name="currentStock"
+                    value={formData.currentStock}
+                    fullWidth
+                    margin="dense"
+                    disabled
+                  />
+                </Grid>
+              </Grid>
             </Grid>
           </Grid>
+          {/* Department/Usage summary */}
+          <Divider sx={{ my: 2 }} />
+          <Typography variant="subtitle1" gutterBottom>
+            Department Allocations
+          </Typography>
+          {departmentsInfo.length > 0 ? (
+            departmentsInfo.map(dep => (
+              <Typography key={dep.name} sx={{ mb: 0.5 }}>
+                <b>{dep.name}</b> ({dep.location}) &ndash; <b>{dep.count}</b> unit{dep.count > 1 ? "s" : ""}
+              </Typography>
+            ))
+          ) : (
+            <Typography color="text.secondary">No department assignments.</Typography>
+          )}
         </DialogContent>
         <DialogActions>
           {editing && (
             <Button
               variant="contained"
               onClick={async () => {
-                // Prepare payload for save
                 const payload = {
                   ...formData,
-                  purchaseDate: formData.purchaseDate ? new Date(formData.purchaseDate).toISOString() : "",
-                  warrantyEndDate: formData.warrantyEndDate ? new Date(formData.warrantyEndDate).toISOString() : "",
-                  createdAt: formData.createdAt ? new Date(formData.createdAt).toISOString() : "",
                   updatedAt: new Date().toISOString(),
                 };
                 try {
@@ -425,7 +503,7 @@ const EquipmentCard = ({ equipment, onUpdate, onDelete }) => {
                   setFormData(res.data);
                   setEditing(false);
                   onUpdate(res.data);
-                } catch (err) {
+                } catch {
                   alert("Failed to update equipment");
                 }
               }}
@@ -436,11 +514,32 @@ const EquipmentCard = ({ equipment, onUpdate, onDelete }) => {
           <Button
             onClick={() => setIsMaintenanceOpen(true)}
             variant="outlined"
-            color="secondary"
+            color="info"
+            sx={{ ml: 1 }}
           >
             Raise Maintenance
           </Button>
-          <Button onClick={() => setIsDialogOpen(false)} color="primary">
+          <Button
+            color="error"
+            variant="outlined"
+            onClick={() => {
+              console.log("Delete equipment:", equipment.id || equipment._id);
+              if (window.confirm("Are you sure you want to delete this equipment?"))
+                onDelete(equipment.id || equipment._id);
+
+            }}
+            sx={{ ml: 1 }}
+          >
+            Delete
+          </Button>
+          <Button
+            onClick={() => {
+              setEditing(false);
+              setIsDialogOpen(false);
+            }}
+            color="primary"
+            sx={{ ml: 1 }}
+          >
             Close
           </Button>
         </DialogActions>

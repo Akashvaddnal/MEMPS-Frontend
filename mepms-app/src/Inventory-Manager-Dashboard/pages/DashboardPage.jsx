@@ -11,27 +11,43 @@ import EquipmentLifeCycleTable from "../components/dashboard/EquipmentLifeCycleT
 import EquipmentUsageTable from "../components/dashboard/EquipmentUsageTable";
 import MaintenanceRequestTable from "../components/dashboard/MaintenanceRequestTable";
 import StockLevelsTable from "../components/dashboard/StockLevelsTable";
+import DepartmentTable from "../components/dashboard/DepartmentTable";
 
 const DashboardPage = () => {
   const [selectedTab, setSelectedTab] = useState(0);
   const [equipmentList, setEquipmentList] = useState([]);
   const [loadingEquipments, setLoadingEquipments] = useState(false);
 
+  // useEffect(() => {
+  //   setLoadingEquipments(true);
+  //   axios
+  //     .get(EQUIPMENT_ENDPOINTS.GET_ALL)
+  //     .then((res) => setEquipmentList(res.data || []))
+  //     .catch(() => setEquipmentList([]))
+  //     .finally(() => setLoadingEquipments(false));
+
+  //     console.log("Equipment list loaded:", equipmentList);
+  // }, []);
   useEffect(() => {
-    setLoadingEquipments(true);
-    axios
-      .get(EQUIPMENT_ENDPOINTS.GET_ALL)
-      .then((res) => setEquipmentList(res.data || []))
-      .catch(() => setEquipmentList([]))
-      .finally(() => setLoadingEquipments(false));
-  }, []);
+  setLoadingEquipments(true);
+  axios
+    .get(EQUIPMENT_ENDPOINTS.GET_ALL)
+    .then(res => {
+      setEquipmentList(res.data || []);
+      console.log("Equipment list loaded:", res.data);
+    })
+    .catch(() => setEquipmentList([]))
+    .finally(() => setLoadingEquipments(false));
+}, []);
+
 
   const deleteEquipment = async (id) => {
     if (!window.confirm("Delete this equipment?")) return;
     try {
       await axios.delete(EQUIPMENT_ENDPOINTS.DELETE(id));
       setEquipmentList((prev) => prev.filter((eq) => eq.id !== id));
-    } catch {
+    } catch(err) {
+      console.log("Failed to delete equipment:", err);
       alert("Failed to delete equipment");
     }
   };
@@ -54,6 +70,7 @@ const DashboardPage = () => {
         <Tab label="Equipment Usage" />
         <Tab label="Inventory Audits" />
         <Tab label="Maintenance Requests" />
+        <Tab label="Department Details" />
         <Tab label="Stock Levels" />
         <Tab label="Analytics" />
       </Tabs>
@@ -82,8 +99,9 @@ const DashboardPage = () => {
       {selectedTab === 2 && <EquipmentUsageTable />}
       {selectedTab === 3 && <InventoryAuditTable />}
       {selectedTab === 4 && <MaintenanceRequestTable />}
-      {selectedTab === 5 && <StockLevelsTable />}
-      {selectedTab === 6 && <AnalyticsCharts />}
+      {selectedTab === 5 && <DepartmentTable />}
+      {selectedTab === 6 && <StockLevelsTable />}
+      {selectedTab === 7 && <AnalyticsCharts />}
     </Box>
   );
 };

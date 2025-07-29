@@ -58,12 +58,12 @@ export default function AccountMenu({
         </Stack>
       </Box>
       <Divider sx={{ my: 1 }} />
-      <MenuItem onClick={onClose}>
+      {/* <MenuItem onClick={onClose}>
         <IconButton size="small" sx={{ mr: 1 }}>
           <SettingsIcon fontSize="small" />
         </IconButton>
         Account Settings
-      </MenuItem>
+      </MenuItem> */}
       <MenuItem onClick={() => {
         onSignOut();
         onClose();

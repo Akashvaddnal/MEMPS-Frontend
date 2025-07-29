@@ -159,6 +159,11 @@ export default function SystemAdminDashboard() {
         .then(res => setRoles(res.data));
     }
   };
+  const handleSignOut = () => {
+    // Clear token and optionally redirect to login page
+    localStorage.removeItem("authToken");
+    window.location.href = "/login";  // Adjust path as needed
+  };
 
   const handleDeleteRole = (id) => {
     axios.delete(`http://localhost:9090/System-Admin-MS/api/roles/${id}`)
@@ -329,11 +334,7 @@ export default function SystemAdminDashboard() {
                   anchorEl={accountMenuAnchor}
                   open={Boolean(accountMenuAnchor)}
                   onClose={() => setAccountMenuAnchor(null)}
-                  onSignOut={() => {
-                    setAccountMenuAnchor(null);
-                    // Add your sign-out logic here
-                    alert('Signed out');
-                  }}
+                 onSignOut={handleSignOut}
                   user={userInfo}
                 />
               </Stack>

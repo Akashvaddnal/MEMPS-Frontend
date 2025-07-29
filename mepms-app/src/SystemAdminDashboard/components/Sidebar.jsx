@@ -11,7 +11,7 @@ import HistoryIcon from '@mui/icons-material/History';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', icon: <DashboardIcon />, key: 'dashboard' },
-  { label: 'Orders', icon: <ShoppingCartIcon />, key: 'orders' },
+  // { label: 'Orders', icon: <ShoppingCartIcon />, key: 'orders' },
   { label: 'User Management', icon: <GroupIcon />, key: 'users' },
   { label: 'Role Management', icon: <SecurityIcon />, key: 'roles' },
   { label: 'Audit Logs', icon: <HistoryIcon />, key: 'auditLogs' },

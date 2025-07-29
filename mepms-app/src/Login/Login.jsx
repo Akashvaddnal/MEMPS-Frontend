@@ -304,6 +304,12 @@ export default function LoginPage() {
         case "Inventory Manager":
           navigate("/inventory-dashboard"); // Assuming this is the InventoryManagerDashboard route
           break;
+        case "Hospital Staff":
+          navigate("/hospital-staff-dashboard"); // Assuming this is the HospitalStaffDashboard route
+          break;
+        case "Biomedical Engineer":
+          navigate("/biomedical-engineer-dashboard"); // Assuming this is the BiomedicalEngineerDashboard route
+          break;
         default:
           navigate("/dashboards"); // fallback route
           break;

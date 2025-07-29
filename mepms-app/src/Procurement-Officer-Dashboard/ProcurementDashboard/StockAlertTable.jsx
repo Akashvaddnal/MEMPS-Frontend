@@ -160,8 +160,8 @@ export default function StockAlertTable({
                 </TableCell>
                 <TableCell>
                   <Chip 
-                    label={alert.currentQuantity} 
-                    color={alert.currentQuantity < alert.minRequired ? 'error' : 'success'}
+                    label={alert.currentStock} 
+                    color={alert.currentStock < alert.minRequired ? 'error' : 'success'}
                     variant="outlined"
                   />
                 </TableCell>

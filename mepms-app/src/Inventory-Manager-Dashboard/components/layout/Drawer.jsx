@@ -29,6 +29,7 @@ const navigationItems = [
   { text: "Equipment Usage", icon: <BuildIcon />, path: "/inventory-dashboard/equipment-usage" },
   { text: "Inventory Audits", icon: <AssignmentIcon />, path: "/inventory-dashboard/inventory-audit" },
   { text: "Maintenance Requests", icon: <CategoryIcon />, path: "/inventory-dashboard/maintenance-requests" },
+  { text: "Departments Details", icon: <CategoryIcon />, path: "/inventory-dashboard/departments-details" },
   { text: "Stock Levels", icon: <StoreIcon />, path: "/inventory-dashboard/stock-levels" },
 ];
 

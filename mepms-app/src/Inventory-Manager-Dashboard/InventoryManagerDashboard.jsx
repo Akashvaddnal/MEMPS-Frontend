@@ -14,6 +14,7 @@ import EquipmentUsageTable from "./components/dashboard/EquipmentUsageTable";
 import InventoryAuditTable from "./components/dashboard/InventoryAuditTable";
 import MaintenanceRequestTable from "./components/dashboard/MaintenanceRequestTable";
 import StockLevelsTable from "./components/dashboard/StockLevelsTable";
+import DepartmentTable from "./components/dashboard/DepartmentTable";
 
 const drawerWidth = 240;
 
@@ -60,6 +61,7 @@ function InventoryManagerDashboardContent() {
           <Route path="/equipment-usage" element={<EquipmentUsageTable />} />
           <Route path="/inventory-audit" element={<InventoryAuditTable />} />
           <Route path="/maintenance-requests" element={<MaintenanceRequestTable />} />
+          <Route path="/departments-details" element={<DepartmentTable />} />
           <Route path="/stock-levels" element={<StockLevelsTable />} />
           {/* Add NotFound or other routes if needed */}
         </Routes>
