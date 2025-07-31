@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Typography, Box, Grid, Paper, CircularProgress } from "@mui/material";
+import { Typography, Box, Grid, Paper, CircularProgress, Toolbar } from "@mui/material";
 import axios from "axios";
 import { biomedicalEndpoints } from "../../api/biomedicalEndpoints";
+import Statistics from "./Statistics";
 
 export default function Dashboard({ currentUser }) {
   const [stats, setStats] = useState(null);

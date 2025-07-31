@@ -16,10 +16,10 @@ const EquipmentCard = ({ equipment, onReserve }) => {
       <CardMedia
         component="img"
         height="140"
-        image={equipment.image || "/images/default-equipment.png"}
+        image={equipment.image}
         alt={equipment.name}
-        sx={{ objectFit: "contain", bgcolor: "#f5f5fa" }}
-      />
+        onError={e => e.target.src="/images/default-equipment.png"} // fallback
+        />
       <CardContent>
         <Typography variant="h6" gutterBottom>{equipment.name}</Typography>
         <Stack spacing={0.5}>

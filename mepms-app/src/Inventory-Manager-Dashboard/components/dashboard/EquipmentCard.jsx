@@ -117,6 +117,7 @@ const EquipmentCard = ({ equipment, onUpdate, onDelete }) => {
   const [isMaintenanceOpen, setIsMaintenanceOpen] = useState(false);
   const [maintenanceForm, setMaintenanceForm] = useState({
     issueDescription: "",
+    department:"Inventory",
     maintenanceType: "Preventive",
   });
 
@@ -586,6 +587,7 @@ const EquipmentCard = ({ equipment, onUpdate, onDelete }) => {
               const payload = {
                 equipmentId: equipment.id,
                 reportedBy: "Inventory Manager",
+                 department:"Inventory",
                 issueDescription: maintenanceForm.issueDescription,
                 maintenanceType: maintenanceForm.maintenanceType,
                 status: "Pending",

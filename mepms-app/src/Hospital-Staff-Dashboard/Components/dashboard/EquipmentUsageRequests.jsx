@@ -45,7 +45,7 @@ const EquipmentUsageRequests = ({ currentUser }) => {
           (r) =>
             r.department === currentUser.department ||
             (!r.department &&
-              (r.usedBy === currentUser.username || r.used_by === currentUser.username))
+              (r.reservedBy === currentUser.username || r.reserved_by === currentUser.username))
         );
         setRequests(filtered);
       } else {
@@ -151,7 +151,7 @@ const EquipmentUsageRequests = ({ currentUser }) => {
                 {requests.map((req) => (
                   <TableRow key={req.id || req._id}>
                     <TableCell>{req.equipmentId || req.equipment_id || "-"}</TableCell>
-                    <TableCell>{req.usedBy || req.used_by || "-"}</TableCell>
+                    <TableCell>{req.reservedBy || req.reserved_by || "-"}</TableCell>
                     <TableCell>{req.purpose || "-"}</TableCell>
                     <TableCell>
                       {req.usageStart || req.usage_start

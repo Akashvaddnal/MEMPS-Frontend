@@ -784,6 +784,9 @@ const MAINTENANCE_TYPES = [
 function getLoggedInUser() {
   return localStorage.getItem("username") || "Inventory manager";
 }
+function getLoggedInUserDepartment(){
+  return localStorage.getItem("username")|| "Inventory";
+}
 
 // Main component
 const MaintenanceRequestsTable = () => {
@@ -807,6 +810,7 @@ const MaintenanceRequestsTable = () => {
     issueDescription: "",
     status: "Pending",
     reportedBy: getLoggedInUser(),
+    department:getLoggedInUserDepartment(),
     reportedAt: dayjs().format("YYYY-MM-DD"),
     resolvedAt: null,
   });
@@ -856,6 +860,7 @@ const MaintenanceRequestsTable = () => {
       issueDescription: "",
       status: "Pending",
       reportedBy: getLoggedInUser(),
+      department:getLoggedInUserDepartment(),
       reportedAt: dayjs().format("YYYY-MM-DD"),
       resolvedAt: null,
     });
@@ -871,6 +876,7 @@ const MaintenanceRequestsTable = () => {
       issueDescription: req.issueDescription,
       status: req.status,
       reportedBy: req.reportedBy || getLoggedInUser(),
+      department: req.department||getLoggedInUserDepartment(),
       reportedAt: req.reportedAt
         ? dayjs(req.reportedAt).format("YYYY-MM-DD")
         : dayjs().format("YYYY-MM-DD"),
@@ -899,6 +905,7 @@ const MaintenanceRequestsTable = () => {
       issueDescription: formData.issueDescription,
       status: formData.status,
       reportedBy: formData.reportedBy,
+      department:formData.department?formData.department:"default department",
       reportedAt: new Date(formData.reportedAt).toISOString(),
     };
 
